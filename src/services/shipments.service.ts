@@ -5,6 +5,14 @@ import type {
 import type { Shipment } from "../types/shipment.types";
 import { apiClient } from "./api.client";
 
+export type UpdateShipmentPayload = {
+  deliveryAt?: string;
+  vehiclePlate?: string;
+  warehouseId?: string;
+  fleetNumber?: string;
+  portId?: string;
+};
+
 export type CreateShipmentPayload = {
   logisticType: "LAND" | "MARITIME";
   clientId: string;
@@ -60,6 +68,14 @@ export const shipmentsService = {
   reject: async (id: string): Promise<Shipment> => {
     const { data } = await apiClient.patch<ApiResponse<Shipment>>(
       `/shipments/${id}/reject`,
+    );
+    return data.data;
+  },
+
+  update: async (id: string, payload: UpdateShipmentPayload): Promise<Shipment> => {
+    const { data } = await apiClient.patch<ApiResponse<Shipment>>(
+      `/shipments/${id}`,
+      payload,
     );
     return data.data;
   },

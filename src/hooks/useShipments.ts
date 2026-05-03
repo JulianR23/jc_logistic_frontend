@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { shipmentsService, type CreateShipmentPayload } from "../services";
+import { type AxiosError } from "axios";
+import {
+  shipmentsService,
+  type CreateShipmentPayload,
+  type UpdateShipmentPayload,
+} from "../services";
 import { useUiStore } from "../store/ui.store";
 import type { BulkJobResponse } from "../types/api-response-wrapper.types";
 import type { Shipment } from "../types/shipment.types";
@@ -49,7 +54,26 @@ export const useDeleteShipment = () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.shipments });
       showToast("Envío eliminado", "success");
     },
-    onError: () => showToast("Error al eliminar el envío", "error"),
+    onError: (error: AxiosError<{ message: string }>) =>
+      showToast(
+        error.response?.data?.message ?? "Error al eliminar el envío",
+        "error",
+      ),
+  });
+};
+
+export const useUpdateShipment = () => {
+  const queryClient = useQueryClient();
+  const { showToast } = useUiStore();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateShipmentPayload }) =>
+      shipmentsService.update(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.shipments });
+      showToast("Envío actualizado exitosamente", "success");
+    },
+    onError: () => showToast("Error al actualizar el envío", "error"),
   });
 };
 

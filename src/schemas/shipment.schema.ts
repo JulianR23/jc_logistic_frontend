@@ -13,6 +13,44 @@ const shipmentItemSchema = yup.object({
     .required("El precio unitario es requerido"),
 });
 
+export const updateShipmentSchema = yup.object({
+  deliveryAt: yup
+    .string()
+    .optional()
+    .test(
+      "min-today",
+      "La fecha de entrega no puede ser anterior al día de hoy",
+      (value) => {
+        if (!value) return true;
+        const dateString = value.split("T")[0];
+        const valDate = new Date(dateString + "T00:00:00");
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return valDate >= today;
+      },
+    ),
+
+  vehiclePlate: yup
+    .string()
+    .optional()
+    .test("plate-format", "Formato inválido. Ejemplo: AAA123", (value) => {
+      if (!value) return true;
+      return /^[A-Z]{3}\d{3}$/.test(value);
+    }),
+
+  warehouseId: yup.string().optional(),
+
+  fleetNumber: yup
+    .string()
+    .optional()
+    .test("fleet-format", "Formato inválido. Ejemplo: AAA1234A", (value) => {
+      if (!value) return true;
+      return /^[A-Z]{3}\d{4}[A-Z]$/.test(value);
+    }),
+
+  portId: yup.string().optional(),
+});
+
 export const shipmentSchema = yup.object({
   guideNumber: yup
     .string()

@@ -16,6 +16,7 @@ import {
   Eye as VisibilityIcon,
   Trash2 as DeleteIcon,
   Ban as BlockIcon,
+  Pencil as EditIcon,
 } from "lucide-react";
 import {
   useClients,
@@ -26,12 +27,14 @@ import {
   useProducts,
   useRejectShipment,
   useShipments,
+  useUpdateShipment,
   useWarehouses,
 } from "../hooks";
-import { shipmentSchema } from "../schemas";
+import { shipmentSchema, updateShipmentSchema } from "../schemas";
 import type { Shipment } from "../types";
 
 type ShipmentForm = yup.InferType<typeof shipmentSchema>;
+type ShipmentEditForm = yup.InferType<typeof updateShipmentSchema>;
 
 const ShipmentDetailModal = ({
   shipment,
@@ -146,11 +149,13 @@ export const ShipmentsPage = () => {
   const createShipment = useCreateShipment();
   const deleteShipment = useDeleteShipment();
   const rejectShipment = useRejectShipment();
+  const updateShipment = useUpdateShipment();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [detailShipment, setDetailShipment] = useState<Shipment | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<Shipment | null>(null);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -207,6 +212,46 @@ export const ShipmentsPage = () => {
       logisticType: "LAND",
       items: [{ productId: "", quantity: 1, unitPrice: 0 }],
     });
+  };
+
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    reset: resetEdit,
+    formState: { errors: editErrors, isSubmitting: isEditSubmitting },
+  } = useForm<ShipmentEditForm>({
+    resolver: yupResolver(updateShipmentSchema) as unknown as Resolver<ShipmentEditForm>,
+  });
+
+  const handleOpenEdit = (s: Shipment) => {
+    setEditTarget(s);
+    resetEdit({
+      deliveryAt: s.deliveryDate.split("T")[0],
+      vehiclePlate: s.land?.licensePlate ?? "",
+      warehouseId: s.land?.warehouseId ?? "",
+      fleetNumber: s.maritime?.fleetNumber ?? "",
+      portId: s.maritime?.seaPortId ?? "",
+    });
+  };
+
+  const handleCloseEdit = () => {
+    setEditTarget(null);
+    resetEdit({});
+  };
+
+  const handleSaveEdit = async (data: ShipmentEditForm) => {
+    if (!editTarget) return;
+    const payload: Record<string, string | undefined> = {};
+    if (data.deliveryAt) payload.deliveryAt = data.deliveryAt;
+    if (editTarget.transportMode === "LAND") {
+      if (data.vehiclePlate) payload.vehiclePlate = data.vehiclePlate;
+      if (data.warehouseId) payload.warehouseId = data.warehouseId;
+    } else {
+      if (data.fleetNumber) payload.fleetNumber = data.fleetNumber;
+      if (data.portId) payload.portId = data.portId;
+    }
+    await updateShipment.mutateAsync({ id: editTarget.id, payload });
+    handleCloseEdit();
   };
 
   const handleSave = async (data: ShipmentForm) => {
@@ -319,6 +364,15 @@ export const ShipmentsPage = () => {
                     >
                       <VisibilityIcon size={18} />
                     </Button>
+                    {s.status !== "COMPLETED" && s.status !== "REJECTED" && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleOpenEdit(s)}
+                        aria-label={`Editar ${s.trackingNumber}`}
+                      >
+                        <EditIcon size={18} />
+                      </Button>
+                    )}
                     {getStatus(s).label === "Pendiente" && (
                       <Button
                         variant="ghost"
@@ -566,6 +620,80 @@ export const ShipmentsPage = () => {
           shipment={detailShipment}
           onClose={() => setDetailShipment(null)}
         />
+      )}
+
+      {editTarget && (
+        <Modal isOpen title="Editar envío" onClose={handleCloseEdit}>
+          <form
+            onSubmit={handleSubmitEdit(handleSaveEdit)}
+            className="flex flex-col gap-4"
+            noValidate
+          >
+            <Input
+              label="Fecha de entrega"
+              type="date"
+              min={todayStr}
+              {...registerEdit("deliveryAt")}
+              error={editErrors.deliveryAt?.message}
+              aria-label="Fecha de entrega"
+            />
+
+            {editTarget.transportMode === "LAND" && (
+              <div className="grid grid-cols-2 gap-4 p-3 bg-blue-50 rounded-lg">
+                <Input
+                  label="Placa del vehículo"
+                  placeholder="AAA123"
+                  {...registerEdit("vehiclePlate")}
+                  error={editErrors.vehiclePlate?.message}
+                  aria-label="Placa"
+                />
+                <Select
+                  label="Bodega de entrega"
+                  {...registerEdit("warehouseId")}
+                  error={editErrors.warehouseId?.message}
+                  aria-label="Bodega"
+                  placeholder="Seleccionar bodega"
+                  options={warehouses.map((w) => ({
+                    value: w.id,
+                    label: `${w.name} - ${w.city}`,
+                  }))}
+                />
+              </div>
+            )}
+
+            {editTarget.transportMode === "MARITIME" && (
+              <div className="grid grid-cols-2 gap-4 p-3 bg-teal-50 rounded-lg">
+                <Input
+                  label="Número de flota"
+                  placeholder="AAA1234A"
+                  {...registerEdit("fleetNumber")}
+                  error={editErrors.fleetNumber?.message}
+                  aria-label="Flota"
+                />
+                <Select
+                  label="Puerto de entrega"
+                  {...registerEdit("portId")}
+                  error={editErrors.portId?.message}
+                  aria-label="Puerto"
+                  placeholder="Seleccionar puerto"
+                  options={ports.map((p) => ({
+                    value: p.id,
+                    label: `${p.name} - ${p.country}`,
+                  }))}
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 mt-2">
+              <Button variant="secondary" type="button" onClick={handleCloseEdit}>
+                Cancelar
+              </Button>
+              <Button type="submit" isLoading={isEditSubmitting}>
+                Guardar
+              </Button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       <ConfirmDialog
