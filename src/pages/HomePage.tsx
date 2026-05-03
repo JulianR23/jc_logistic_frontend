@@ -157,7 +157,7 @@ export const HomePage = () => {
               onClick={() => navigate(to)}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition-colors"
             >
-              <span></span>
+              {icon && <span>{icon}</span>}
               {label}
             </button>
           ))}

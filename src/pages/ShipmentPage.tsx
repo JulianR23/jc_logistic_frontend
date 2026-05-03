@@ -1,5 +1,5 @@
 import { yupResolver } from "@hookform/resolvers/yup";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import * as yup from "yup";
 import {
@@ -21,6 +21,7 @@ import {
   useClients,
   useCreateShipment,
   useDeleteShipment,
+  useNextTrackingNumber,
   usePorts,
   useProducts,
   useRejectShipment,
@@ -80,7 +81,10 @@ const ShipmentDetailModal = ({
           <div>
             <p className="text-gray-400 text-xs">Fecha entrega</p>
             <p className="font-medium">
-              {new Date(shipment.deliveryDate).toLocaleDateString()}
+              {new Date(
+                new Date(shipment.deliveryDate).getTime() +
+                  new Date(shipment.deliveryDate).getTimezoneOffset() * 60000,
+              ).toLocaleDateString()}
             </p>
           </div>
           {shipment.land?.licensePlate && (
@@ -156,6 +160,8 @@ export const ShipmentsPage = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const delivery = new Date(s.deliveryDate);
+    // Ajustar la fecha con el timezone offset para reflejar el día correcto
+    delivery.setMinutes(delivery.getMinutes() + delivery.getTimezoneOffset());
     delivery.setHours(0, 0, 0, 0);
     return delivery >= today
       ? { label: "Pendiente", cls: "bg-yellow-100 text-yellow-700" }
@@ -168,18 +174,39 @@ export const ShipmentsPage = () => {
     watch,
     control,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ShipmentForm>({
     resolver: yupResolver(shipmentSchema) as unknown as Resolver<ShipmentForm>,
-    defaultValues: { items: [{ productId: "", quantity: 1 }] },
+    defaultValues: {
+      logisticType: "LAND",
+      items: [{ productId: "", quantity: 1, unitPrice: 0 }],
+    },
   });
+
+  const { data: nextTrackingNumber } = useNextTrackingNumber(modalOpen);
+
+  useEffect(() => {
+    if (modalOpen && nextTrackingNumber) {
+      setValue("guideNumber", nextTrackingNumber);
+    }
+  }, [modalOpen, nextTrackingNumber, setValue]);
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const logisticType = watch("logisticType");
+  const items = watch("items");
+
+  const totalBasePrice =
+    items?.reduce((sum, item) => {
+      return sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+    }, 0) ?? 0;
 
   const handleClose = () => {
     setModalOpen(false);
-    reset({ items: [{ productId: "", quantity: 1 }] });
+    reset({
+      logisticType: "LAND",
+      items: [{ productId: "", quantity: 1, unitPrice: 0 }],
+    });
   };
 
   const handleSave = async (data: ShipmentForm) => {
@@ -187,11 +214,11 @@ export const ShipmentsPage = () => {
       guideNumber: data.guideNumber,
       logisticType: data.logisticType as "LAND" | "MARITIME",
       clientId: data.clientId,
-      basePrice: data.basePrice,
       deliveryAt: data.deliveryAt,
       items: data.items.map((i) => ({
         productId: i.productId,
         quantity: i.quantity,
+        unitPrice: i.unitPrice,
       })),
       vehiclePlate: data.vehiclePlate,
       warehouseId: data.warehouseId,
@@ -267,7 +294,10 @@ export const ShipmentsPage = () => {
                     ${Number(s.totalCost).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-gray-500">
-                    {new Date(s.deliveryDate).toLocaleDateString()}
+                    {new Date(
+                      new Date(s.deliveryDate).getTime() +
+                        new Date(s.deliveryDate).getTimezoneOffset() * 60000,
+                    ).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
                     {(() => {
@@ -323,7 +353,8 @@ export const ShipmentsPage = () => {
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Número de guía"
-              placeholder="AB12345678"
+              readOnly
+              className="bg-gray-50 text-gray-500 cursor-default select-none"
               {...register("guideNumber")}
               error={errors.guideNumber?.message}
               aria-label="Número de guía"
@@ -353,24 +384,14 @@ export const ShipmentsPage = () => {
             }))}
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Precio base"
-              type="number"
-              step="0.01"
-              {...register("basePrice", { valueAsNumber: true })}
-              error={errors.basePrice?.message}
-              aria-label="Precio base"
-            />
-            <Input
-              label="Fecha de entrega"
-              type="date"
-              min={todayStr}
-              {...register("deliveryAt")}
-              error={errors.deliveryAt?.message}
-              aria-label="Fecha de entrega"
-            />
-          </div>
+          <Input
+            label="Fecha de entrega"
+            type="date"
+            min={todayStr}
+            {...register("deliveryAt")}
+            error={errors.deliveryAt?.message}
+            aria-label="Fecha de entrega"
+          />
 
           {/* Campos condicionales terrestre */}
           {logisticType === "LAND" && (
@@ -429,7 +450,9 @@ export const ShipmentsPage = () => {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => append({ productId: "", quantity: 1 })}
+                onClick={() =>
+                  append({ productId: "", quantity: 1, unitPrice: 0 })
+                }
                 aria-label="Agregar producto"
                 className="text-xs"
               >
@@ -442,45 +465,88 @@ export const ShipmentsPage = () => {
               </p>
             )}
             <div className="flex flex-col gap-2">
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex gap-2 items-start">
-                  <div className="flex-1">
-                    <Select
-                      label=""
-                      {...register(`items.${index}.productId`)}
-                      error={errors.items?.[index]?.productId?.message}
-                      aria-label={`Producto ${index + 1}`}
-                      placeholder="Seleccionar producto"
-                      options={products.map((p) => ({
-                        value: p.id,
-                        label: p.name,
-                      }))}
-                    />
+              {fields.map((field, index) => {
+                const qty = Number(watch(`items.${index}.quantity`)) || 0;
+                const price = Number(watch(`items.${index}.unitPrice`)) || 0;
+                const subtotal = qty * price;
+                return (
+                  <div
+                    key={field.id}
+                    className="flex flex-col gap-1 p-2 bg-gray-50 rounded-lg border border-gray-100"
+                  >
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <Select
+                          label=""
+                          {...register(`items.${index}.productId`)}
+                          error={errors.items?.[index]?.productId?.message}
+                          aria-label={`Producto ${index + 1}`}
+                          placeholder="Seleccionar producto"
+                          options={products.map((p) => ({
+                            value: p.id,
+                            label: p.name,
+                          }))}
+                        />
+                      </div>
+                      <div className="w-24">
+                        <Input
+                          label=""
+                          type="number"
+                          min={1}
+                          placeholder="Cant."
+                          {...register(`items.${index}.quantity`, {
+                            valueAsNumber: true,
+                          })}
+                          error={errors.items?.[index]?.quantity?.message}
+                          aria-label={`Cantidad producto ${index + 1}`}
+                        />
+                      </div>
+                      <div className="w-32">
+                        <Input
+                          label=""
+                          type="number"
+                          min={0.01}
+                          step="0.01"
+                          placeholder="Precio unit."
+                          {...register(`items.${index}.unitPrice`, {
+                            valueAsNumber: true,
+                          })}
+                          error={errors.items?.[index]?.unitPrice?.message}
+                          aria-label={`Precio unitario producto ${index + 1}`}
+                        />
+                      </div>
+                      {fields.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => remove(index)}
+                          aria-label={`Eliminar producto ${index + 1}`}
+                          className="mt-1 text-red-400 hover:text-red-600"
+                        >
+                          <DeleteIcon size={18} />
+                        </button>
+                      )}
+                    </div>
+                    {subtotal > 0 && (
+                      <p className="text-xs text-gray-500 text-right pr-1">
+                        Subtotal:{" "}
+                        <span className="font-semibold text-gray-700">
+                          ${subtotal.toLocaleString("es-CO")}
+                        </span>
+                      </p>
+                    )}
                   </div>
-                  <div className="w-24">
-                    <Input
-                      label=""
-                      type="number"
-                      min={1}
-                      {...register(`items.${index}.quantity`, {
-                        valueAsNumber: true,
-                      })}
-                      error={errors.items?.[index]?.quantity?.message}
-                      aria-label={`Cantidad producto ${index + 1}`}
-                    />
-                  </div>
-                  {fields.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => remove(index)}
-                      aria-label={`Eliminar producto ${index + 1}`}
-                      className="mt-1 text-red-400 hover:text-red-600"
-                    >
-                      <DeleteIcon size={18} />
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
+            </div>
+
+            {/* Precio base total calculado */}
+            <div className="mt-3 flex items-center justify-between p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+              <span className="text-sm font-medium text-indigo-700">
+                Precio base total
+              </span>
+              <span className="text-base font-bold text-indigo-800">
+                ${totalBasePrice.toLocaleString("es-CO")}
+              </span>
             </div>
           </div>
 

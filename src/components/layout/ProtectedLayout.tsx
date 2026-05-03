@@ -3,7 +3,7 @@ import { ToastContainer } from "../ui/ToastContainer";
 import { useAuthStore } from "../../store/auth.store";
 
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Inicio" },
+  { to: "/home", label: "Inicio" },
   { to: "/shipments", label: "Envíos" },
   { to: "/clients", label: "Clientes" },
   { to: "/products", label: "Productos" },

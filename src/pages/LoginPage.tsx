@@ -1,6 +1,6 @@
 import { yupResolver } from "@hookform/resolvers/yup";
 import type { AxiosError } from "axios";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import * as yup from "yup";
@@ -28,6 +28,13 @@ export const LoginPage = () => {
   const { showToast } = useUiStore();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (localStorage.getItem("session_expired")) {
+      localStorage.removeItem("session_expired");
+      showToast("Tu sesión ha expirado. Por favor inicia sesión de nuevo.", "warning");
+    }
+  }, [showToast]);
+
   const loginForm = useForm<LoginFormData>({
     resolver: yupResolver(loginSchema),
   });
@@ -40,7 +47,7 @@ export const LoginPage = () => {
       const response = await authService.login(data.email, data.password);
       setSession(response.accessToken, response.user);
       showToast("Sesión iniciada correctamente", "success");
-      navigate("/dashboard");
+      navigate("/home");
     } catch (err) {
       showToast(getLoginErrorMessage(err), "error");
     }
@@ -57,7 +64,7 @@ export const LoginPage = () => {
       );
       setSession(response.accessToken, response.user);
       showToast("Cuenta creada exitosamente", "success");
-      navigate("/dashboard");
+      navigate("/home");
     } catch (err) {
       const status = (err as AxiosError<ApiErrorBody>).response?.status;
       if (status === 409) {

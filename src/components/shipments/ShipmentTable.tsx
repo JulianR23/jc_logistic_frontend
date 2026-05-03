@@ -69,7 +69,10 @@ export const ShipmentTable = ({
                 ${Number(shipment.totalCost).toLocaleString("es-CO")}
               </td>
               <td className="px-4 py-3 text-gray-500">
-                {new Date(shipment.deliveryDate).toLocaleDateString("es-CO")}
+                {new Date(
+                  new Date(shipment.deliveryDate).getTime() +
+                    new Date(shipment.deliveryDate).getTimezoneOffset() * 60000,
+                ).toLocaleDateString("es-CO")}
               </td>
               <td className="px-4 py-3">
                 <div className="flex gap-1">

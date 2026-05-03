@@ -29,6 +29,7 @@ apiClient.interceptors.response.use(
     const isAuthEndpoint = error.config?.url?.startsWith("/auth/");
     if (error.response?.status === 401 && !isAuthEndpoint) {
       useAuthStore.getState().clearSession();
+      localStorage.setItem("session_expired", "true");
       window.location.href = "/login";
     }
     return Promise.reject(error);

@@ -6,16 +6,15 @@ import type { Shipment } from "../types/shipment.types";
 import { apiClient } from "./api.client";
 
 export type CreateShipmentPayload = {
-  guideNumber: string;
   logisticType: "LAND" | "MARITIME";
   clientId: string;
-  basePrice: number;
   deliveryAt: string;
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; quantity: number; unitPrice: number }[];
   vehiclePlate?: string;
   warehouseId?: string;
   fleetNumber?: string;
   portId?: string;
+  guideNumber?: string;
 };
 
 export const shipmentsService = {
@@ -45,6 +44,13 @@ export const shipmentsService = {
       ApiResponse<Shipment | BulkJobResponse>
     >("/shipments", payload);
     return data.data;
+  },
+
+  getNextTrackingNumber: async (): Promise<string> => {
+    const { data } = await apiClient.get<
+      ApiResponse<{ trackingNumber: string }>
+    >("/shipments/next-tracking-number");
+    return data.data.trackingNumber;
   },
 
   remove: async (id: string): Promise<void> => {

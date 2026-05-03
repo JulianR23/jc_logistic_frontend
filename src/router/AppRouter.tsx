@@ -15,11 +15,7 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
 
 const PublicGuard = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuthStore();
-  return isAuthenticated ? (
-    <Navigate to="/dashboard" replace />
-  ) : (
-    <>{children}</>
-  );
+  return isAuthenticated ? <Navigate to="/home" replace /> : <>{children}</>;
 };
 
 export const AppRouter = () => (
@@ -40,7 +36,7 @@ export const AppRouter = () => (
         </AuthGuard>
       }
     >
-      <Route path="/dashboard" element={<HomePage />} />
+      <Route path="/home" element={<HomePage />} />
       <Route path="/shipments" element={<ShipmentsPage />} />
       <Route path="/clients" element={<ClientsPage />} />
       <Route path="/products" element={<ProductsPage />} />
@@ -48,6 +44,6 @@ export const AppRouter = () => (
       <Route path="/ports" element={<PortsPage />} />
     </Route>
 
-    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    <Route path="*" element={<Navigate to="/home" replace />} />
   </Routes>
 );

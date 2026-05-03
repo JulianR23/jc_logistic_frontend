@@ -7,16 +7,20 @@ const shipmentItemSchema = yup.object({
     .integer("Debe ser un número entero")
     .min(1, "Mínimo 1 unidad")
     .required("La cantidad es requerida"),
+  unitPrice: yup
+    .number()
+    .positive("Debe ser mayor que 0")
+    .required("El precio unitario es requerido"),
 });
 
 export const shipmentSchema = yup.object({
   guideNumber: yup
     .string()
+    .optional()
     .matches(
       /^[A-Z0-9]{10}$/,
       "Debe tener 10 caracteres alfanuméricos en mayúsculas",
-    )
-    .required("El número de guía es requerido"),
+    ),
 
   logisticType: yup
     .string()
@@ -24,11 +28,6 @@ export const shipmentSchema = yup.object({
     .required("El tipo de logística es requerido"),
 
   clientId: yup.string().required("El cliente es requerido"),
-
-  basePrice: yup
-    .number()
-    .positive("Debe ser mayor que 0")
-    .required("El precio base es requerido"),
 
   deliveryAt: yup
     .string()
@@ -38,9 +37,12 @@ export const shipmentSchema = yup.object({
       "La fecha de entrega no puede ser anterior al día de hoy",
       (value) => {
         if (!value) return false;
+        // Evitar problemas de zona horaria extrayendo solo YYYY-MM-DD
+        const dateString = value.split("T")[0];
+        const valDate = new Date(dateString + "T00:00:00");
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        return new Date(value) >= today;
+        return valDate >= today;
       },
     ),
 

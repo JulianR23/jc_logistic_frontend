@@ -11,6 +11,15 @@ export const useShipments = () =>
     queryFn: shipmentsService.getAll,
   });
 
+export const useNextTrackingNumber = (enabled: boolean) =>
+  useQuery({
+    queryKey: QUERY_KEYS.nextTrackingNumber,
+    queryFn: shipmentsService.getNextTrackingNumber,
+    enabled,
+    staleTime: 0,
+    gcTime: 0,
+  });
+
 export const useCreateShipment = () => {
   const queryClient = useQueryClient();
   const { showToast } = useUiStore();

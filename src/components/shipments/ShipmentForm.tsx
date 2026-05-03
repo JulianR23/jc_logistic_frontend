@@ -20,14 +20,6 @@ type ShipmentFormProps = {
   isSubmitting: boolean;
 };
 
-/**
- * Formulario de creación de envío.
- * Extraído de ShipmentsPage para mantener la separación de responsabilidades.
- *
- * Muestra campos condicionales según el tipo de logística:
- * - TERRESTRIAL: vehiclePlate + warehouseId
- * - MARITIME:    fleetNumber + portId
- */
 export const ShipmentForm = ({
   isOpen,
   onClose,
@@ -47,33 +39,48 @@ export const ShipmentForm = ({
     formState: { errors },
   } = useForm<ShipmentForm>({
     resolver: yupResolver(shipmentSchema) as unknown as Resolver<ShipmentForm>,
-    defaultValues: { items: [{ productId: "", quantity: 1 }] },
+    defaultValues: {
+      logisticType: "LAND",
+      items: [{ productId: "", quantity: 1, unitPrice: 0 }],
+    },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const logisticType = watch("logisticType");
+  const items = watch("items");
+
+  const totalBasePrice = items.reduce((sum, item) => {
+    const qty = Number(item.quantity) || 0;
+    const price = Number(item.unitPrice) || 0;
+    return sum + qty * price;
+  }, 0);
 
   const handleClose = () => {
-    reset({ items: [{ productId: "", quantity: 1 }] });
+    reset({
+      logisticType: "LAND",
+      items: [{ productId: "", quantity: 1, unitPrice: 0 }],
+    });
     onClose();
   };
 
   const handleSave = async (data: ShipmentForm) => {
-    await onSubmit({
-      guideNumber: data.guideNumber,
+    const base = {
       logisticType: data.logisticType as "LAND" | "MARITIME",
       clientId: data.clientId,
-      basePrice: data.basePrice,
       deliveryAt: data.deliveryAt,
       items: data.items.map((i) => ({
         productId: i.productId,
         quantity: i.quantity,
+        unitPrice: i.unitPrice,
       })),
-      vehiclePlate: data.vehiclePlate,
-      warehouseId: data.warehouseId,
-      fleetNumber: data.fleetNumber,
-      portId: data.portId,
-    });
+    };
+
+    const typeFields =
+      data.logisticType === "LAND"
+        ? { vehiclePlate: data.vehiclePlate, warehouseId: data.warehouseId }
+        : { fleetNumber: data.fleetNumber, portId: data.portId };
+
+    await onSubmit({ ...base, ...typeFields });
     handleClose();
   };
 
@@ -84,15 +91,8 @@ export const ShipmentForm = ({
         className="flex flex-col gap-4"
         noValidate
       >
-        {/* Guía y tipo */}
+        {/* Tipo de logística + número de guía */}
         <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Número de guía"
-            placeholder="AB12345678"
-            {...register("guideNumber")}
-            error={errors.guideNumber?.message}
-            aria-label="Número de guía"
-          />
           <Select
             label="Tipo de logística"
             {...register("logisticType")}
@@ -103,6 +103,15 @@ export const ShipmentForm = ({
               { value: "LAND", label: "Terrestre" },
               { value: "MARITIME", label: "Marítimo" },
             ]}
+          />
+          <Input
+            label="Número de guía"
+            value="Se genera automáticamente"
+            disabled
+            readOnly
+            tabIndex={-1}
+            onChange={() => undefined}
+            aria-label="Número de guía"
           />
         </div>
 
@@ -116,24 +125,14 @@ export const ShipmentForm = ({
           options={clients.map((c) => ({ value: c.id, label: c.companyName }))}
         />
 
-        {/* Precio y fecha */}
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Precio base"
-            type="number"
-            step="0.01"
-            {...register("basePrice", { valueAsNumber: true })}
-            error={errors.basePrice?.message}
-            aria-label="Precio base"
-          />
-          <Input
-            label="Fecha de entrega"
-            type="date"
-            {...register("deliveryAt")}
-            error={errors.deliveryAt?.message}
-            aria-label="Fecha de entrega"
-          />
-        </div>
+        {/* Fecha de entrega */}
+        <Input
+          label="Fecha de entrega"
+          type="date"
+          {...register("deliveryAt")}
+          error={errors.deliveryAt?.message}
+          aria-label="Fecha de entrega"
+        />
 
         {/* Campos exclusivos TERRESTRIAL */}
         {logisticType === "LAND" && (
@@ -192,7 +191,7 @@ export const ShipmentForm = ({
             <Button
               type="button"
               variant="ghost"
-              onClick={() => append({ productId: "", quantity: 1 })}
+              onClick={() => append({ productId: "", quantity: 1, unitPrice: 0 })}
               aria-label="Agregar producto al envío"
               className="text-xs"
             >
@@ -211,11 +210,22 @@ export const ShipmentForm = ({
                 index={index}
                 products={products}
                 register={register}
+                watch={watch}
                 errors={errors}
                 canRemove={fields.length > 1}
                 onRemove={remove}
               />
             ))}
+          </div>
+
+          {/* Precio base total calculado */}
+          <div className="mt-3 flex items-center justify-between p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+            <span className="text-sm font-medium text-indigo-700">
+              Precio base total
+            </span>
+            <span className="text-base font-bold text-indigo-800">
+              ${totalBasePrice.toLocaleString("es-CO")}
+            </span>
           </div>
         </div>
 

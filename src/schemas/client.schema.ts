@@ -12,6 +12,6 @@ export const clientSchema = yup.object({
     .required("El teléfono es requerido"),
   documentId: yup
     .string()
-    .length(12, "El NIT debe tener exactamente 12 caracteres")
+    .max(12, "El NIT debe tener exactamente 12 caracteres")
     .required("El documento es requerido"),
 });

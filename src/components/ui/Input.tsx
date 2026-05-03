@@ -18,7 +18,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           className={`px-3 py-2 border rounded-lg text-sm outline-none transition-colors focus:ring-2 focus:ring-blue-500 ${
             error ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-          } ${className}`}
+          } disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed disabled:select-none ${className}`}
           {...props}
         />
         {error && <span className="text-xs text-red-500">{error}</span>}
