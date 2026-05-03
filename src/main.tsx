@@ -9,7 +9,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 1000 * 30,
+      staleTime: Number(import.meta.env.VITE_QUERY_STALE_TIME_MS) || 30_000,
     },
   },
 });

@@ -27,6 +27,6 @@ export const useAuthStore = create<AuthState>()(
       clearSession: () =>
         set({ token: null, user: null, isAuthenticated: false }),
     }),
-    { name: "logistica-auth" },
+    { name: import.meta.env.VITE_TOKEN_STORAGE_KEY || "logistica-auth" },
   ),
 );
