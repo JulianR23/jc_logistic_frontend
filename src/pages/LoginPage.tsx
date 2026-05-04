@@ -58,8 +58,6 @@ export const LoginPage = () => {
       const response = await authService.register(
         data.name,
         data.email,
-        data.phone,
-        data.nit,
         data.password,
       );
       setSession(response.accessToken, response.user);
@@ -114,23 +112,6 @@ export const LoginPage = () => {
               aria-label="Email"
               {...registerForm.register("email")}
               error={registerForm.formState.errors.email?.message}
-            />
-            <Input
-              label="Teléfono"
-              type="tel"
-              placeholder="3001234567"
-              aria-label="Teléfono"
-              maxLength={10}
-              {...registerForm.register("phone")}
-              error={registerForm.formState.errors.phone?.message}
-            />
-            <Input
-              label="NIT"
-              placeholder="900123456-1"
-              aria-label="NIT"
-              maxLength={12}
-              {...registerForm.register("nit")}
-              error={registerForm.formState.errors.nit?.message}
             />
             <Input
               label="Contraseña"

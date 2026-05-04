@@ -14,13 +14,11 @@ export const authService = {
   register: async (
     name: string,
     email: string,
-    phone: string,
-    nit: string,
     password: string,
   ): Promise<AuthResponse> => {
     const { data } = await apiClient.post<ApiResponse<AuthResponse>>(
       "/auth/register",
-      { name, email, phone, nit, password },
+      { name, email, password },
     );
     return data.data;
   },
